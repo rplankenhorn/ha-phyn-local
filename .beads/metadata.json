@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "ha_phyn_local",
+  "project_id": "f1e2a825-8681-46c3-a330-54891fd01f78"
+}

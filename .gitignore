@@ -1,0 +1,13 @@
+# Local-only device captures and scratch files
+*.local.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/

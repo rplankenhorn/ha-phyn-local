@@ -64,6 +64,10 @@ The water valve entity operates a **real water shutoff valve on your main water 
 - **Device:** Phyn Plus (PP2) on firmware 4.9.x and compatible versions
 - **Home Assistant:** 2024.4 and later
 
+## Contributing
+
+Contributions are welcome, and **AI-assisted contributions are encouraged** — this project was built with AI coding agents and is set up for them. Before starting, read [AGENTS.md](AGENTS.md): work is tracked with [beads](https://github.com/gastownhall/beads) (`bd ready` to find a task, `bd update <id> --claim`, `bd close <id>`), and there's a model/delegation policy to keep contributions cost-effective. Human PRs are equally welcome — just follow the same task-tracking workflow.
+
 ## Credits and disclaimer
 
 - Local JNAP protocol reference: [PROTOCOL.md](PROTOCOL.md)

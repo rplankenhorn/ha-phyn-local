@@ -1,0 +1,75 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Phyn Plus",
+        "description": "Enter the local IP address or hostname of your Phyn Plus device. Local control uses the JNAP API on port 80; a DHCP reservation is recommended since the device's IP can change.",
+        "data": {
+          "host": "Host"
+        }
+      },
+      "discovery_confirm": {
+        "title": "Add discovered Phyn Plus",
+        "description": "Do you want to set up {name} ({host})?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device. Check the IP address and that the device is powered on and connected to your network.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "cannot_connect": "Failed to connect to the device"
+    }
+  },
+  "entity": {
+    "valve": {
+      "valve": {
+        "name": "Main valve"
+      }
+    },
+    "sensor": {
+      "pressure": {
+        "name": "Water pressure"
+      },
+      "temperature": {
+        "name": "Water temperature"
+      },
+      "flow_rate": {
+        "name": "Water flow rate"
+      },
+      "consumption_total": {
+        "name": "Total water consumption"
+      },
+      "flow_state": {
+        "name": "Flow state",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "wifi_signal": {
+        "name": "Wi-Fi signal"
+      },
+      "valve_close_count": {
+        "name": "Valve close count"
+      },
+      "uptime": {
+        "name": "Uptime"
+      }
+    },
+    "binary_sensor": {
+      "leak_alert": {
+        "name": "Leak detected"
+      },
+      "freeze_risk": {
+        "name": "Freeze risk"
+      },
+      "online": {
+        "name": "Online"
+      }
+    }
+  }
+}

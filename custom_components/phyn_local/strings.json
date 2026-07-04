@@ -58,6 +58,9 @@
       },
       "uptime": {
         "name": "Uptime"
+      },
+      "active_alerts": {
+        "name": "Active alerts"
       }
     },
     "binary_sensor": {
@@ -66,6 +69,18 @@
       },
       "freeze_risk": {
         "name": "Freeze risk"
+      },
+      "pressure_oor": {
+        "name": "Pressure out of range"
+      },
+      "flow_oor": {
+        "name": "Abnormal flow"
+      },
+      "leak_test_running": {
+        "name": "Leak test running"
+      },
+      "offline_leak_protection": {
+        "name": "Offline leak protection"
       },
       "online": {
         "name": "Online"

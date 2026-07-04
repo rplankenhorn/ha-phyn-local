@@ -150,3 +150,64 @@ class TestDeviceStateParsing:
     def test_freeze_risk_missing_is_none(self, attribute_get_output):
         del attribute_get_output["product"]["ml_oor_temperature_state"]
         assert PhynDeviceState.from_jnap(attribute_get_output).freeze_risk is None
+
+    def test_pressure_oor_zero_is_false(self, attribute_get_output):
+        assert attribute_get_output["product"]["ml_oor_pressure_state"] == 0
+        assert PhynDeviceState.from_jnap(attribute_get_output).pressure_oor is False
+
+    def test_pressure_oor_nonzero_is_true(self, attribute_get_output):
+        attribute_get_output["product"]["ml_oor_pressure_state"] = 1
+        assert PhynDeviceState.from_jnap(attribute_get_output).pressure_oor is True
+
+    def test_pressure_oor_unset_is_none(self, attribute_get_output):
+        attribute_get_output["product"]["ml_oor_pressure_state"] = "<unset>"
+        assert PhynDeviceState.from_jnap(attribute_get_output).pressure_oor is None
+
+    def test_pressure_oor_missing_is_none(self, attribute_get_output):
+        del attribute_get_output["product"]["ml_oor_pressure_state"]
+        assert PhynDeviceState.from_jnap(attribute_get_output).pressure_oor is None
+
+    def test_flow_oor_zero_is_false(self, attribute_get_output):
+        assert attribute_get_output["product"]["ml_oor_flow_state"] == 0
+        assert PhynDeviceState.from_jnap(attribute_get_output).flow_oor is False
+
+    def test_flow_oor_nonzero_is_true(self, attribute_get_output):
+        attribute_get_output["product"]["ml_oor_flow_state"] = 3
+        assert PhynDeviceState.from_jnap(attribute_get_output).flow_oor is True
+
+    def test_flow_oor_missing_is_none(self, attribute_get_output):
+        del attribute_get_output["product"]["ml_oor_flow_state"]
+        assert PhynDeviceState.from_jnap(attribute_get_output).flow_oor is None
+
+    def test_leak_test_running_passthrough(self, attribute_get_output):
+        attribute_get_output["product"]["sov_plumbing_check_in_progress"] = True
+        assert PhynDeviceState.from_jnap(attribute_get_output).leak_test_running is True
+        attribute_get_output["product"]["sov_plumbing_check_in_progress"] = False
+        assert PhynDeviceState.from_jnap(attribute_get_output).leak_test_running is False
+
+    def test_leak_test_running_missing_is_none(self, attribute_get_output):
+        del attribute_get_output["product"]["sov_plumbing_check_in_progress"]
+        assert PhynDeviceState.from_jnap(attribute_get_output).leak_test_running is None
+
+    def test_offline_leak_protection_passthrough(self, attribute_get_output):
+        assert (
+            PhynDeviceState.from_jnap(attribute_get_output).offline_leak_protection is True
+        )
+        attribute_get_output["product"]["ml_offline_leak_detector_enabled"] = False
+        assert (
+            PhynDeviceState.from_jnap(attribute_get_output).offline_leak_protection is False
+        )
+
+    def test_offline_leak_protection_missing_is_none(self, attribute_get_output):
+        del attribute_get_output["product"]["ml_offline_leak_detector_enabled"]
+        assert (
+            PhynDeviceState.from_jnap(attribute_get_output).offline_leak_protection is None
+        )
+
+    def test_active_alerts_int(self, attribute_get_output):
+        attribute_get_output["product"]["alert_notifier_fp_active_alerts"] = 2
+        assert PhynDeviceState.from_jnap(attribute_get_output).active_alerts == 2
+
+    def test_active_alerts_missing_is_none(self, attribute_get_output):
+        del attribute_get_output["product"]["alert_notifier_fp_active_alerts"]
+        assert PhynDeviceState.from_jnap(attribute_get_output).active_alerts is None

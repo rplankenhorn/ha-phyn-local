@@ -42,6 +42,33 @@ BINARY_SENSOR_DESCRIPTIONS: list[PhynBinarySensorEntityDescription] = [
         is_on_fn=lambda state: state.freeze_risk,
     ),
     PhynBinarySensorEntityDescription(
+        key="pressure_oor",
+        translation_key="pressure_oor",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        is_on_fn=lambda state: state.pressure_oor,
+    ),
+    PhynBinarySensorEntityDescription(
+        key="flow_oor",
+        translation_key="flow_oor",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        is_on_fn=lambda state: state.flow_oor,
+    ),
+    PhynBinarySensorEntityDescription(
+        key="leak_test_running",
+        translation_key="leak_test_running",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        is_on_fn=lambda state: state.leak_test_running,
+    ),
+    PhynBinarySensorEntityDescription(
+        key="offline_leak_protection",
+        translation_key="offline_leak_protection",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        is_on_fn=lambda state: state.offline_leak_protection,
+    ),
+    PhynBinarySensorEntityDescription(
         key="online",
         translation_key="online",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,

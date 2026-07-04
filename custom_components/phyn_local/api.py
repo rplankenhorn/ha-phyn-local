@@ -119,6 +119,11 @@ class PhynDeviceState:
     wifi_connected: Optional[bool] = None
     leak_alert: bool = False
     freeze_risk: Optional[bool] = None
+    pressure_oor: Optional[bool] = None
+    flow_oor: Optional[bool] = None
+    leak_test_running: Optional[bool] = None
+    offline_leak_protection: Optional[bool] = None
+    active_alerts: Optional[int] = None
 
     @classmethod
     def from_jnap(cls, output: dict[str, Any]) -> "PhynDeviceState":
@@ -152,7 +157,30 @@ class PhynDeviceState:
             wifi_connected=stats.get("wifi_connected"),
             leak_alert=leak_alert,
             freeze_risk=freeze_risk,
+            pressure_oor=_parse_oor_state(product.get("ml_oor_pressure_state")),
+            flow_oor=_parse_oor_state(product.get("ml_oor_flow_state")),
+            leak_test_running=product.get("sov_plumbing_check_in_progress"),
+            offline_leak_protection=product.get("ml_offline_leak_detector_enabled"),
+            active_alerts=_as_int(product.get("alert_notifier_fp_active_alerts")),
         )
+
+
+def _parse_oor_state(raw: Any) -> Optional[bool]:
+    """Interpret a product.ml_oor_*_state out-of-range detector field.
+
+    These integers use 0 = "normal"; any non-zero value signals an
+    out-of-range condition. The specific non-zero encodings (e.g. high vs
+    low) are not yet known, so we collapse to a single boolean here. The
+    sentinel string "<unset>"/None means the detector position is
+    unpopulated on this device, which we surface as "unknown" (None)
+    rather than guessing.
+    """
+    if raw is None or raw == "<unset>":
+        return None
+    state = _as_int(raw)
+    if state is None:
+        return None
+    return state != 0
 
 
 def _parse_freeze_risk(raw: Any) -> Optional[bool]:
@@ -168,12 +196,7 @@ def _parse_freeze_risk(raw: Any) -> Optional[bool]:
     condition (0 mirrors the "normal" convention used by the sibling
     ml_oor_pressure_state/ml_oor_flow_state fields on this device).
     """
-    if raw is None or raw == "<unset>":
-        return None
-    state = _as_int(raw)
-    if state is None:
-        return None
-    return state != 0
+    return _parse_oor_state(raw)
 
 
 class PhynLocalClient:

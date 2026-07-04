@@ -40,7 +40,11 @@ Responses are JSON envelopes: `{"result": "OK", "output": { ... }}`, or `{"resul
 | `product.sov_state_str` / `product.sov_close_count` | valve open/closed + actuation count |
 | `product.consumption_total` | cumulative gallons |
 | `product.alert_notifier_fp_state_str` | flow-alert / leak state (`normal` = OK) |
+| `product.alert_notifier_fp_active_alerts` | count of active device alerts |
 | `product.ml_oor_temperature_state` | freeze / out-of-range-temperature state |
+| `product.ml_oor_pressure_state` / `product.ml_oor_flow_state` | out-of-range pressure / flow (`0` = normal, non-zero = out of range) |
+| `product.sov_plumbing_check_in_progress` | leak test / plumbing check running |
+| `product.ml_offline_leak_detector_enabled` | on-device auto-shutoff leak protection enabled |
 | `stats.wifi_sta_rssi` | Wi-Fi signal (dBm) |
 | `stats.net_connected` / `stats.wifi_connected` | connectivity |
 | `stats.device_up_time_sec` | uptime (s) |

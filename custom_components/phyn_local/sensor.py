@@ -104,6 +104,13 @@ SENSOR_DESCRIPTIONS: list[PhynSensorEntityDescription] = [
         entity_registry_enabled_default=False,
         value_fn=lambda state: state.uptime_sec,
     ),
+    PhynSensorEntityDescription(
+        key="active_alerts",
+        translation_key="active_alerts",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda state: state.active_alerts,
+    ),
 ]
 
 

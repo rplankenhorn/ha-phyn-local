@@ -51,8 +51,13 @@ The integration also auto-discovers the Phyn Plus via DHCP when the device (MAC 
 | Wi-Fi signal | Sensor | Wi-Fi signal strength (diagnostic) |
 | Valve close count | Sensor | Number of times the valve has been closed (diagnostic) |
 | Uptime | Sensor | Device uptime in seconds (diagnostic) |
+| Active alerts | Sensor | Count of active device alerts (diagnostic) |
 | Leak detected | Binary sensor | Indicates if a leak has been detected (diagnostic) |
 | Freeze risk | Binary sensor | Indicates if freeze protection is triggered (diagnostic) |
+| Pressure out of range | Binary sensor | Water pressure outside the normal range (diagnostic) |
+| Abnormal flow | Binary sensor | Water flow flagged as out of range (diagnostic) |
+| Leak test running | Binary sensor | Plumbing check / auto leak test in progress (diagnostic) |
+| Offline leak protection | Binary sensor | On-device auto-shutoff leak protection is enabled (diagnostic) |
 | Online | Binary sensor | Indicates if the device is online (diagnostic) |
 
 ## Safety warning

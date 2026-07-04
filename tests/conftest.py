@@ -83,6 +83,7 @@ def attribute_get_output() -> dict:
             "ml_oor_pressure_win_average": 66.286819,
             "ml_oor_temperature_state": "<unset>",
             "ml_oor_temperature_win_average": "<unset>",
+            "ml_offline_leak_detector_enabled": True,
             "partner_name": "phyn",
             "pic_fw_version": "0.143",
             "product_has_button": True,

@@ -2,22 +2,27 @@
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import replace
 from datetime import timedelta
+from unittest.mock import AsyncMock, call
 
 import pytest
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import dt as dt_util
+from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )
 
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import UpdateFailed
-from homeassistant.util import dt as dt_util
-from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
-
-from custom_components.phyn_local.api import PhynConnectionError
+from custom_components.phyn_local import coordinator as coordinator_module
+from custom_components.phyn_local.api import PhynConnectionError, PhynValveState
 from custom_components.phyn_local.const import DEFAULT_SCAN_INTERVAL, DOMAIN
 from custom_components.phyn_local.coordinator import PhynCoordinator
 
@@ -91,6 +96,39 @@ async def test_setup_entry_creates_entities(hass: HomeAssistant, mock_client) ->
     assert freeze.state == "unknown"
 
 
+@pytest.mark.parametrize(
+    ("valve_state", "expected"),
+    [
+        (PhynValveState.OPENING, "opening"),
+        (PhynValveState.CLOSING, "closing"),
+        (PhynValveState.UNKNOWN, "unknown"),
+    ],
+)
+async def test_valve_exposes_nonterminal_states(
+    hass: HomeAssistant, mock_client, mock_device_state, valve_state, expected
+) -> None:
+    """The valve entity exposes transitions and uncertainty honestly."""
+    mock_client.get_state.return_value = replace(
+        mock_device_state, valve_state=valve_state
+    )
+    await setup_integration(hass)
+    assert hass.states.get("valve.phyn_plus_999").state == expected
+
+
+async def test_wan_offline_does_not_make_entities_unavailable(
+    hass: HomeAssistant, mock_client, mock_device_state
+) -> None:
+    """Successful LAN polling remains available without upstream WAN access."""
+    mock_client.get_state.return_value = replace(
+        mock_device_state, net_connected=False, wifi_connected=True
+    )
+    await setup_integration(hass)
+    pressure = hass.states.get("sensor.phyn_plus_999_water_pressure")
+    valve = hass.states.get("valve.phyn_plus_999")
+    assert pressure.state != STATE_UNAVAILABLE
+    assert valve.state == "open"
+
+
 async def test_setup_entry_not_ready_on_connection_error(
     hass: HomeAssistant, mock_client
 ) -> None:
@@ -114,10 +152,15 @@ async def test_entities_unavailable_on_refresh_failure(
 ) -> None:
     """Entities go unavailable when a refresh raises PhynConnectionError."""
     await setup_integration(hass)
-    assert hass.states.get("sensor.phyn_plus_999_water_pressure").state != STATE_UNAVAILABLE
+    assert (
+        hass.states.get("sensor.phyn_plus_999_water_pressure").state
+        != STATE_UNAVAILABLE
+    )
 
     mock_client.get_state.side_effect = PhynConnectionError("device went away")
-    async_fire_time_changed(hass, dt_util.utcnow() + DEFAULT_SCAN_INTERVAL + timedelta(seconds=5))
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + DEFAULT_SCAN_INTERVAL + timedelta(seconds=5)
+    )
     await hass.async_block_till_done()
 
     assert (
@@ -144,7 +187,7 @@ async def test_coordinator_raises_update_failed(
     """The coordinator wraps client errors in UpdateFailed."""
     from custom_components.phyn_local.api import PhynLocalClient
 
-    client = PhynLocalClient(TEST_HOST, session=None)
+    client = PhynLocalClient(TEST_HOST)
     coordinator = PhynCoordinator(hass, client, mock_device_info)
 
     mock_client.get_state.side_effect = PhynConnectionError("boom")
@@ -173,6 +216,153 @@ async def test_valve_open_close_services(hass: HomeAssistant, mock_client) -> No
     mock_client.set_valve_state.assert_awaited_with(True)
     # The follow-up coordinator refresh is debounced, so we don't assert on
     # get_state call counts here.
+
+
+async def test_open_succeeds_without_retry(
+    hass: HomeAssistant, mock_client, mock_device_state
+) -> None:
+    """A fully-open first verification does not send a second command."""
+    entry = await setup_integration(hass)
+    mock_client.set_valve_state.reset_mock()
+    mock_client.get_state.reset_mock(return_value=True, side_effect=True)
+    mock_client.get_state.return_value = mock_device_state
+
+    await entry.runtime_data.coordinator.async_open_valve()
+
+    mock_client.set_valve_state.assert_awaited_once_with(True)
+    mock_client.get_state.assert_awaited_once()
+
+
+async def test_partial_open_retries_once_then_succeeds(
+    hass: HomeAssistant, mock_client, mock_device_state, monkeypatch
+) -> None:
+    """One partial verification causes one retry, followed by success."""
+    entry = await setup_integration(hass)
+    coordinator = entry.runtime_data.coordinator
+    partial = replace(mock_device_state, valve_state=PhynValveState.UNKNOWN)
+    mock_client.set_valve_state.reset_mock()
+    mock_client.get_state.reset_mock(return_value=True, side_effect=True)
+    mock_client.get_state.side_effect = [partial, mock_device_state]
+    monkeypatch.setattr(coordinator_module, "OPEN_VERIFY_TIMEOUT", 0)
+
+    await coordinator.async_open_valve()
+
+    assert mock_client.set_valve_state.await_args_list == [call(True), call(True)]
+
+
+async def test_persistent_partial_open_raises_and_creates_repair(
+    hass: HomeAssistant, mock_client, mock_device_state, monkeypatch
+) -> None:
+    """A partial state after the bounded retry becomes unknown and a Repair."""
+    entry = await setup_integration(hass)
+    coordinator = entry.runtime_data.coordinator
+    partial = replace(mock_device_state, valve_state=PhynValveState.UNKNOWN)
+    mock_client.set_valve_state.reset_mock()
+    mock_client.get_state.reset_mock(return_value=True, side_effect=True)
+    mock_client.get_state.return_value = partial
+    monkeypatch.setattr(coordinator_module, "OPEN_VERIFY_TIMEOUT", 0)
+
+    with pytest.raises(HomeAssistantError, match="after one retry"):
+        await coordinator.async_open_valve()
+
+    assert mock_client.set_valve_state.await_args_list == [call(True), call(True)]
+    assert coordinator.data.valve_state is PhynValveState.UNKNOWN
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"partial_open_{TEST_SERIAL}")
+    assert issue is not None
+    assert issue.is_persistent is True
+    assert issue.translation_key == "partial_open"
+
+
+@pytest.mark.parametrize(
+    ("state", "message"),
+    [
+        (PhynValveState.CLOSED, "remained fully closed"),
+        (PhynValveState.UNKNOWN, "active leak"),
+    ],
+)
+async def test_closed_or_leak_does_not_retry(
+    hass: HomeAssistant,
+    mock_client,
+    mock_device_state,
+    state,
+    message,
+) -> None:
+    """A confirmed close or active leak prevents an automatic Open retry."""
+    entry = await setup_integration(hass)
+    reported = replace(
+        mock_device_state,
+        valve_state=state,
+        leak_alert=message == "active leak",
+    )
+    mock_client.set_valve_state.reset_mock()
+    mock_client.get_state.reset_mock(return_value=True, side_effect=True)
+    mock_client.get_state.return_value = reported
+
+    with pytest.raises(HomeAssistantError, match=message):
+        await entry.runtime_data.coordinator.async_open_valve()
+
+    mock_client.set_valve_state.assert_awaited_once_with(True)
+
+
+async def test_close_supersedes_pending_open_verification(
+    hass: HomeAssistant, mock_client, mock_device_state, monkeypatch
+) -> None:
+    """A newer Close prevents an older Open task from issuing its retry."""
+    entry = await setup_integration(hass)
+    coordinator = entry.runtime_data.coordinator
+    partial = replace(mock_device_state, valve_state=PhynValveState.UNKNOWN)
+    closed = replace(mock_device_state, valve_state=PhynValveState.CLOSED)
+    first_open_poll = asyncio.Event()
+    refresh_count = 0
+
+    async def refresh_state():
+        nonlocal refresh_count
+        refresh_count += 1
+        if refresh_count == 1:
+            first_open_poll.set()
+            return partial
+        return closed
+
+    monkeypatch.setattr(coordinator_module, "OPEN_POLL_INTERVAL", 0.01)
+    monkeypatch.setattr(
+        coordinator,
+        "_async_refresh_command_state",
+        AsyncMock(side_effect=refresh_state),
+    )
+    mock_client.set_valve_state.reset_mock()
+
+    open_task = asyncio.create_task(coordinator.async_open_valve())
+    await first_open_poll.wait()
+    await coordinator.async_close_valve()
+    await open_task
+
+    assert mock_client.set_valve_state.await_args_list == [call(True), call(False)]
+
+
+async def test_later_open_poll_clears_partial_open_repair(
+    hass: HomeAssistant, mock_client, mock_device_state, monkeypatch
+) -> None:
+    """A later fully-open passive poll removes the persistent Repair."""
+    entry = await setup_integration(hass)
+    coordinator = entry.runtime_data.coordinator
+    partial = replace(mock_device_state, valve_state=PhynValveState.UNKNOWN)
+    mock_client.get_state.reset_mock(return_value=True, side_effect=True)
+    mock_client.get_state.return_value = partial
+    monkeypatch.setattr(coordinator_module, "OPEN_VERIFY_TIMEOUT", 0)
+
+    with pytest.raises(HomeAssistantError):
+        await coordinator.async_open_valve()
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, f"partial_open_{TEST_SERIAL}")
+        is not None
+    )
+
+    mock_client.get_state.return_value = mock_device_state
+    await coordinator.async_refresh()
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, f"partial_open_{TEST_SERIAL}")
+        is None
+    )
 
 
 async def test_unload_entry(hass: HomeAssistant, mock_client) -> None:

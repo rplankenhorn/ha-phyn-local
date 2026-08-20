@@ -19,6 +19,17 @@ Body: JSON
 
 Responses are JSON envelopes: `{"result": "OK", "output": { ... }}`, or `{"result": "_Error...", "error": "..."}` on failure.
 
+### PP2 malformed-response compatibility
+
+PP2 firmware 4.9.0.23 can emit `attribute/get` as malformed HTTP: a
+`GetDataFromDaemon: ...` debug line appears in the headers and a second complete
+HTTP response follows the first body despite `Connection: close`. The first
+response's `Content-Length` is accurate. Clients must read exactly that many
+body bytes and ignore anything appended afterward. The integration's bounded
+socket transport does this for every JNAP action while still rejecting missing
+or invalid lengths, truncated or oversized bodies, malformed JSON, timeouts,
+HTTP errors, and JNAP error envelopes.
+
 ## Actions used by the integration
 
 | Purpose | `X-JNAP-Action` | Body | Notes |
@@ -37,7 +48,8 @@ Responses are JSON envelopes: `{"result": "OK", "output": { ... }}`, or `{"resul
 | `product.sensor_pressure_1` | water pressure (PSI) |
 | `product.sensor_temperature_1` | water temperature (°F) |
 | `product.sensor_flow` / `product.sensor_flow_state` | flow rate (GPM) / off·low·med·high |
-| `product.sov_state_str` / `product.sov_close_count` | valve open/closed + actuation count |
+| `product.sov_state_str` / `product.sov_pic_state_str` | primary/PIC valve state; both must agree when PIC state is present |
+| `product.sov_close_count` | valve actuation count |
 | `product.consumption_total` | cumulative gallons |
 | `product.alert_notifier_fp_state_str` | flow-alert / leak state (`normal` = OK) |
 | `product.alert_notifier_fp_active_alerts` | count of active device alerts |

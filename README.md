@@ -6,6 +6,12 @@ A local-only (LAN, no cloud) Home Assistant integration for the Phyn Plus smart 
 
 The Phyn Plus exposes a JNAP HTTP API on port 80 of your LAN (endpoints and fields documented in [PROTOCOL.md](PROTOCOL.md)). The integration polls the device every 30 seconds.
 
+All monitoring and control is local. Loss of cloud or WAN connectivity does
+not affect the integration while Home Assistant can still reach the powered
+Phyn device over the LAN. The client also tolerates the malformed HTTP emitted
+by affected PP2 firmware: it reads the declared JSON body and ignores the
+firmware's leaked debug header and extra response data.
+
 ## Installation
 
 ### Via HACS (recommended)
@@ -59,6 +65,19 @@ The integration also auto-discovers the Phyn Plus via DHCP when the device (MAC 
 | Leak test running | Binary sensor | Plumbing check / auto leak test in progress (diagnostic) |
 | Offline leak protection | Binary sensor | On-device auto-shutoff leak protection is enabled (diagnostic) |
 | Online | Binary sensor | Indicates if the device is online (diagnostic) |
+
+The valve reports `open` or `closed` only when the device's controller states
+agree on a final position. During travel it can report `opening` or `closing`;
+partial positions, disagreements, and unknown firmware values are reported as
+`unknown` rather than being mistaken for closed.
+
+After an explicit Open command, the integration verifies the position for up
+to 15 seconds. If the valve remains non-final, it sends exactly one additional
+Open command and verifies for another 15 seconds. It never retries from passive
+polling, after a confirmed closed state, or while an active leak is reported.
+A persistent partial-open failure raises a service error and a Home Assistant
+Repairs issue; the issue clears after a later poll confirms the valve is fully
+open.
 
 ## Safety warning
 

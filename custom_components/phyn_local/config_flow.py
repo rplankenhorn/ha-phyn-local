@@ -6,11 +6,9 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 try:
     from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
@@ -27,8 +25,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema({vol.Required(CONF_HOST): str})
 
 async def _get_device_info(hass: HomeAssistant, host: str) -> PhynDeviceInfo:
     """Validate we can talk to the device at host, returning its device info."""
-    session = async_get_clientsession(hass)
-    client = PhynLocalClient(host, session)
+    client = PhynLocalClient(host)
     return await client.get_device_info()
 
 
@@ -54,9 +51,7 @@ class PhynLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             except PhynConnectionError:
                 errors["base"] = "cannot_connect"
             except Exception:  # noqa: BLE001
-                _LOGGER.exception(
-                    "Unexpected error validating Phyn device at %s", host
-                )
+                _LOGGER.exception("Unexpected error validating Phyn device at %s", host)
                 errors["base"] = "unknown"
             else:
                 if not info.serial_number:

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from homeassistant.components.valve import ValveDeviceClass, ValveEntity, ValveEntityFeature
+from homeassistant.components.valve import (
+    ValveDeviceClass,
+    ValveEntity,
+    ValveEntityFeature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PhynConfigEntry
+from .api import PhynValveState
 from .coordinator import PhynEntity
 
 
@@ -19,19 +24,28 @@ class PhynMainValve(PhynEntity, ValveEntity):
     _attr_name = None
 
     @property
-    def is_closed(self) -> bool:
-        """Return True if the valve is closed."""
-        return not self.coordinator.data.valve_open
+    def is_closed(self) -> bool | None:
+        """Return the terminal valve position, or unknown if non-final."""
+        valve_open = self.coordinator.data.valve_open
+        return None if valve_open is None else not valve_open
+
+    @property
+    def is_opening(self) -> bool:
+        """Return whether the device reports that the valve is opening."""
+        return self.coordinator.data.valve_state is PhynValveState.OPENING
+
+    @property
+    def is_closing(self) -> bool:
+        """Return whether the device reports that the valve is closing."""
+        return self.coordinator.data.valve_state is PhynValveState.CLOSING
 
     async def async_open_valve(self) -> None:
         """Open the valve."""
-        await self.coordinator.client.set_valve_state(True)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_open_valve()
 
     async def async_close_valve(self) -> None:
         """Close the valve."""
-        await self.coordinator.client.set_valve_state(False)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_close_valve()
 
 
 async def async_setup_entry(

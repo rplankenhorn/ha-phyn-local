@@ -86,5 +86,11 @@
         "name": "Online"
       }
     }
+  },
+  "issues": {
+    "partial_open": {
+      "title": "Phyn valve did not fully open",
+      "description": "{device} remained in a partial or unknown position after the open command was retried once. Check the valve and water supply, then open it manually or send another Open command. This issue clears after the device reports that the valve is fully open."
+    }
   }
 }
